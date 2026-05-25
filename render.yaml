@@ -17,7 +17,7 @@ services:
   - type: web
     name: supply-chain-frontend
     runtime: static
-    buildCommand: cd supply_chain_risk/frontend && npm install && VITE_API_URL=https://supply-chain-api.onrender.com npm run build
+    buildCommand: cd supply_chain_risk/frontend && npm install && VITE_API_URL=https://supply-chain-risk-prediction.onrender.com npm run build
     publishPath: supply_chain_risk/frontend/dist
     routes:
       - type: rewrite
