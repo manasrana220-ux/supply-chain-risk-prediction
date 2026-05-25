@@ -1,0 +1,25 @@
+services:
+  # ── Backend API Web Service ────────────────────────────────────────────────
+  - type: web
+    name: supply-chain-api
+    runtime: python
+    buildCommand: pip install -r supply_chain_risk/backend/requirements.txt
+    startCommand: cd supply_chain_risk/backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./production_risk.db
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+
+  # ── Frontend React Static Site ─────────────────────────────────────────────
+  - type: web
+    name: supply-chain-frontend
+    runtime: static
+    buildCommand: cd supply_chain_risk/frontend && npm install && VITE_API_URL=https://supply-chain-api.onrender.com npm run build
+    publishPath: supply_chain_risk/frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
