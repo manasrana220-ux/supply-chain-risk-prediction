@@ -31,8 +31,8 @@ def load_model():
     # Seed users
     db = SessionLocal()
     try:
-        db.add(User(username="admin", hashed_password=get_password_hash("admin123"), role="admin"))
-        db.add(User(username="analyst", hashed_password=get_password_hash("analyst123"), role="analyst"))
+        db.add(User(username="admin", hashed_password=get_password_hash("admin123"), role="admin", recovery_phrase="supply-chain"))
+        db.add(User(username="analyst", hashed_password=get_password_hash("analyst123"), role="analyst", recovery_phrase="supply-chain"))
         db.commit()
     finally:
         db.close()
@@ -247,3 +247,56 @@ def test_get_users_analyst():
     token = login_resp.json()["access_token"]
     resp = client.get("/api/v1/auth/users", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 403
+
+
+# ── Password Reset and Profile Photo tests ────────────────────────────────────
+
+def test_reset_password_success():
+    resp = client.post(
+        "/api/v1/auth/reset-password",
+        json={"username": "analyst", "recovery_phrase": "supply-chain", "new_password": "newanalyst123"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Password reset successfully"
+
+    # Verify we can login with the new password
+    login_resp = client.post(
+        "/api/v1/auth/token",
+        data={"username": "analyst", "password": "newanalyst123"}
+    )
+    assert login_resp.status_code == 200
+    assert "access_token" in login_resp.json()
+
+    # Revert back to original password for other tests
+    resp = client.post(
+        "/api/v1/auth/reset-password",
+        json={"username": "analyst", "recovery_phrase": "supply-chain", "new_password": "analyst123"}
+    )
+    assert resp.status_code == 200
+
+
+def test_reset_password_invalid_phrase():
+    resp = client.post(
+        "/api/v1/auth/reset-password",
+        json={"username": "analyst", "recovery_phrase": "wrong-phrase", "new_password": "newpassword123"}
+    )
+    assert resp.status_code == 400
+    assert "Incorrect recovery phrase" in resp.json()["detail"]
+
+
+def test_profile_photo_upload():
+    token = get_token()
+    base64_photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    resp = client.put(
+        "/api/v1/auth/profile-photo",
+        json={"profile_photo": base64_photo},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["profile_photo"] == base64_photo
+
+    # Check that user response from GET /users contains the photo
+    resp_users = client.get("/api/v1/auth/users", headers={"Authorization": f"Bearer {token}"})
+    assert resp_users.status_code == 200
+    admin_user = next(u for u in resp_users.json() if u["username"] == "admin")
+    assert admin_user["profile_photo"] == base64_photo

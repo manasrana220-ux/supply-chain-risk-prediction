@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
                 hashed_password=get_password_hash("admin123"),
                 role="admin",
                 is_active=True,
+                recovery_phrase="supply-chain",
             )
             db.add(admin_user)
         
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI):
                 hashed_password=get_password_hash("analyst123"),
                 role="analyst",
                 is_active=True,
+                recovery_phrase="supply-chain",
             )
             db.add(analyst_user)
         

@@ -18,6 +18,19 @@ const decodeToken = (token) => {
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved || 'dark';
+  });
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     // Check if token exists in localStorage
@@ -62,7 +75,7 @@ export default function App() {
       {!user ? (
         <Login onLoginSuccess={handleLoginSuccess} />
       ) : (
-        <Dashboard user={user} onLogout={handleLogout} />
+        <Dashboard user={user} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
       )}
     </>
   );

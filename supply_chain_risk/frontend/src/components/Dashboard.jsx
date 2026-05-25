@@ -8,13 +8,53 @@ import {
   ShieldAlert, 
   Activity, 
   FileText,
-  Workflow
+  Workflow,
+  Sun,
+  Moon,
+  Camera
 } from 'lucide-react';
 import SinglePrediction from './SinglePrediction';
 import BatchPrediction from './BatchPrediction';
 import Analytics from './Analytics';
+import { API_BASE } from '../config';
 
-export default function Dashboard({ user, onLogout }) {
+export default function Dashboard({ user, onLogout, theme, setTheme }) {
+  const [profilePhoto, setProfilePhoto] = useState(user.profile_photo || null);
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result;
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/auth/profile-photo`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.access_token}`
+          },
+          body: JSON.stringify({ profile_photo: base64String })
+        });
+        if (!response.ok) {
+          throw new Error('Failed to upload profile photo');
+        }
+        const data = await response.json();
+        setProfilePhoto(data.profile_photo);
+        // Also update the stored user object in localStorage
+        const savedUser = localStorage.getItem('risk_control_user');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          parsed.profile_photo = data.profile_photo;
+          localStorage.setItem('risk_control_user', JSON.stringify(parsed));
+        }
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const [activeTab, setActiveTab] = useState('single');
   const [predictionStats, setPredictionStats] = useState({
     singleCount: 0,
@@ -48,9 +88,18 @@ export default function Dashboard({ user, onLogout }) {
     <div className="dashboard-grid">
       {/* Sidebar */}
       <aside style={styles.sidebar}>
-        <div style={styles.brand}>
-          <Workflow size={28} color="var(--primary)" />
-          <span className="display-font" style={styles.brandText}>RiskControl AI</span>
+        <div style={styles.brandContainer}>
+          <div style={styles.brand}>
+            <Workflow size={28} color="var(--primary)" />
+            <span className="display-font" style={styles.brandText}>RiskControl AI</span>
+          </div>
+          <button 
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            style={styles.themeToggle}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun size={18} color="var(--text-secondary)" /> : <Moon size={18} color="var(--text-secondary)" />}
+          </button>
         </div>
 
         <nav style={styles.nav}>
@@ -77,8 +126,23 @@ export default function Dashboard({ user, onLogout }) {
 
         {/* User Card */}
         <div style={styles.userCard}>
-          <div style={styles.userIcon}>
-            <User size={18} color="var(--primary)" />
+          <div style={styles.avatarWrapper}>
+            {profilePhoto ? (
+              <img src={profilePhoto} alt="Profile" style={styles.avatarImage} />
+            ) : (
+              <div style={styles.userIcon}>
+                <User size={18} color="var(--primary)" />
+              </div>
+            )}
+            <label style={styles.cameraOverlay} title="Upload photo">
+              <Camera size={12} color="#fff" />
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handlePhotoUpload} 
+                style={{ display: 'none' }} 
+              />
+            </label>
           </div>
           <div style={styles.userInfo}>
             <span style={styles.username}>{user.username}</span>
@@ -158,7 +222,9 @@ export default function Dashboard({ user, onLogout }) {
 
 const styles = {
   sidebar: {
-    background: 'rgba(11, 15, 25, 0.95)',
+    background: 'var(--bg-card)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
     borderRight: '1px solid var(--border-color)',
     display: 'flex',
     flexDirection: 'column',
@@ -168,17 +234,34 @@ const styles = {
     top: 0,
     zIndex: 10,
   },
+  brandContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '2.5rem',
+    width: '100%',
+  },
   brand: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    marginBottom: '2.5rem',
     paddingLeft: '0.5rem',
   },
   brandText: {
     fontSize: '1.25rem',
-    color: '#fff',
+    color: 'var(--text-primary)',
     fontWeight: '700',
+  },
+  themeToggle: {
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--border-color)',
+    cursor: 'pointer',
+    padding: '0.5rem',
+    borderRadius: 'var(--radius-sm)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color var(--transition-fast), border-color var(--transition-fast)',
   },
   nav: {
     display: 'flex',
@@ -212,6 +295,18 @@ const styles = {
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
     border: '1px solid var(--border-color)',
   },
+  avatarWrapper: {
+    position: 'relative',
+    width: '36px',
+    height: '36px',
+  },
+  avatarImage: {
+    width: '36px',
+    height: '36px',
+    borderRadius: 'var(--radius-sm)',
+    objectFit: 'cover',
+    border: '1px solid var(--border-color)',
+  },
   userIcon: {
     width: '36px',
     height: '36px',
@@ -220,6 +315,22 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: '-4px',
+    right: '-4px',
+    backgroundColor: 'var(--primary)',
+    borderRadius: '50%',
+    width: '18px',
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: '1px solid var(--bg-main)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+    transition: 'transform 0.1s ease',
   },
   userInfo: {
     display: 'flex',
@@ -278,7 +389,7 @@ const styles = {
   },
   headerTitle: {
     fontSize: '1.75rem',
-    color: '#fff',
+    color: 'var(--text-primary)',
     marginBottom: '0.25rem',
   },
   headerSubtitle: {
@@ -305,7 +416,7 @@ const styles = {
   statVal: {
     fontSize: '1.1rem',
     fontWeight: '700',
-    color: '#fff',
+    color: 'var(--text-primary)',
     lineHeight: 1.1,
   },
   statLabel: {

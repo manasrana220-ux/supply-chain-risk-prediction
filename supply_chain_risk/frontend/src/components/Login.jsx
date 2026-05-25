@@ -13,6 +13,11 @@ export default function Login({ onLoginSuccess }) {
   const [role, setRole] = useState('analyst');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Password reset/forgot states
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [recoveryPhrase, setRecoveryPhrase] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -20,14 +25,38 @@ export default function Login({ onLoginSuccess }) {
     setSuccessMessage('');
 
     try {
-      if (isRegistering) {
+      if (isForgotPassword) {
+        // Reset Password API request
+        const response = await fetch(`${API_BASE}/api/v1/auth/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            username, 
+            recovery_phrase: recoveryPhrase, 
+            new_password: newPassword 
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || 'Password reset failed. Please check your username and phrase.');
+        }
+
+        setSuccessMessage('Password reset successfully! Please sign in with your new password.');
+        setIsForgotPassword(false);
+        setPassword('');
+        setNewPassword('');
+        setRecoveryPhrase('');
+      } else if (isRegistering) {
         // Register API request
         const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ username, password, role }),
+          body: JSON.stringify({ username, password, role, recovery_phrase: recoveryPhrase }),
         });
 
         if (!response.ok) {
@@ -38,6 +67,7 @@ export default function Login({ onLoginSuccess }) {
         setSuccessMessage('Account created successfully! Please sign in.');
         setIsRegistering(false);
         setPassword('');
+        setRecoveryPhrase('');
       } else {
         // Login API request
         const params = new URLSearchParams();
@@ -82,9 +112,11 @@ export default function Login({ onLoginSuccess }) {
           </div>
           <h1 className="display-font" style={styles.title}>Supply Chain Risk Portal</h1>
           <p style={styles.subtitle}>
-            {isRegistering 
-              ? 'Create a new account to access risk model dashboard' 
-              : 'Enter credentials to access risk model dashboard'}
+            {isForgotPassword
+              ? 'Recover your account password using your phrase'
+              : isRegistering 
+                ? 'Create a new account to access risk model dashboard' 
+                : 'Enter credentials to access risk model dashboard'}
           </p>
         </div>
 
@@ -102,68 +134,167 @@ export default function Login({ onLoginSuccess }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Username</label>
-            <div style={styles.inputWrapper}>
-              <User size={18} style={styles.icon} />
-              <input
-                type="text"
-                placeholder="Enter username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                style={styles.input}
-              />
-            </div>
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
-            <div style={styles.inputWrapper}>
-              <Lock size={18} style={styles.icon} />
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={styles.input}
-              />
-            </div>
-          </div>
-
-          {isRegistering && (
+        {isForgotPassword ? (
+          <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Assign Role</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                style={styles.select}
-              >
-                <option value="analyst">Analyst (Read & Predict)</option>
-                <option value="admin">Administrator (Full Access)</option>
-              </select>
+              <label style={styles.label}>Username</label>
+              <div style={styles.inputWrapper}>
+                <User size={18} style={styles.icon} />
+                <input
+                  type="text"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.button,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading 
-              ? (isRegistering ? 'Registering...' : 'Authenticating...') 
-              : (isRegistering ? 'Create New Account' : 'Sign In to Dashboard')}
-          </button>
-        </form>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Recovery Phrase</label>
+              <div style={styles.inputWrapper}>
+                <Shield size={18} style={styles.icon} />
+                <input
+                  type="text"
+                  placeholder="Enter recovery phrase"
+                  value={recoveryPhrase}
+                  onChange={(e) => setRecoveryPhrase(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>New Password</label>
+              <div style={styles.inputWrapper}>
+                <Lock size={18} style={styles.icon} />
+                <input
+                  type="password"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                ...styles.button,
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {loading ? 'Resetting...' : 'Reset Password'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} style={styles.form}>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Username</label>
+              <div style={styles.inputWrapper}>
+                <User size={18} style={styles.icon} />
+                <input
+                  type="text"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Password</label>
+              <div style={styles.inputWrapper}>
+                <Lock size={18} style={styles.icon} />
+                <input
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            {!isRegistering && (
+              <div style={{ textAlign: 'right', marginTop: '-0.5rem' }}>
+                <span 
+                  onClick={() => { setIsForgotPassword(true); setError(''); setSuccessMessage(''); }} 
+                  style={{ ...styles.toggleLink, fontSize: '0.8rem' }}
+                >
+                  Forgot Password?
+                </span>
+              </div>
+            )}
+
+            {isRegistering && (
+              <>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Recovery Phrase (for password reset)</label>
+                  <div style={styles.inputWrapper}>
+                    <Shield size={18} style={styles.icon} />
+                    <input
+                      type="text"
+                      placeholder="e.g. supply-chain"
+                      value={recoveryPhrase}
+                      onChange={(e) => setRecoveryPhrase(e.target.value)}
+                      required
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Assign Role</label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    style={styles.select}
+                  >
+                    <option value="analyst">Analyst (Read & Predict)</option>
+                    <option value="admin">Administrator (Full Access)</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                ...styles.button,
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {loading 
+                ? (isRegistering ? 'Registering...' : 'Authenticating...') 
+                : (isRegistering ? 'Create New Account' : 'Sign In to Dashboard')}
+            </button>
+          </form>
+        )}
 
         <div style={styles.toggleText}>
-          {isRegistering ? (
+          {isForgotPassword ? (
+            <>
+              Remember your password?{' '}
+              <span 
+                onClick={() => { setIsForgotPassword(false); setError(''); setSuccessMessage(''); }} 
+                style={styles.toggleLink}
+              >
+                Sign In
+              </span>
+            </>
+          ) : isRegistering ? (
             <>
               Already have an account?{' '}
               <span 
@@ -186,7 +317,7 @@ export default function Login({ onLoginSuccess }) {
           )}
         </div>
 
-        {!isRegistering && (
+        {!isRegistering && !isForgotPassword && (
           <>
             <div style={styles.divider}>
               <span style={styles.dividerText}>Demo Credentials</span>

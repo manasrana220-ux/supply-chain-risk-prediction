@@ -15,21 +15,34 @@ class Token(BaseModel):
     token_type: str
     username: str
     role: str
+    profile_photo: str | None = None
 
 
 class UserCreate(BaseModel):
     username: str
     password: str
     role: str = "analyst"
+    recovery_phrase: str | None = None
 
 
 class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
+    profile_photo: str | None = None
 
     class Config:
         from_attributes = True
+
+
+class PasswordReset(BaseModel):
+    username: str
+    recovery_phrase: str
+    new_password: str
+
+
+class ProfilePhotoUpdate(BaseModel):
+    profile_photo: str
 
 
 @router.post("/token", response_model=Token)
@@ -53,6 +66,7 @@ def login(
         token_type="bearer",
         username=user.username,
         role=user.role,
+        profile_photo=user.profile_photo,
     )
 
 
@@ -78,7 +92,8 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         username=user_in.username,
         hashed_password=get_password_hash(user_in.password),
         role=user_in.role,
-        is_active=True
+        is_active=True,
+        recovery_phrase=user_in.recovery_phrase
     )
     db.add(new_user)
     db.commit()
@@ -100,3 +115,41 @@ def get_users(
             detail="Only administrators can view the user directory."
         )
     return db.query(User).all()
+
+
+@router.post("/reset-password")
+def reset_password(reset_in: PasswordReset, db: Session = Depends(get_db)):
+    """
+    Reset a user's password using their recovery phrase.
+    """
+    user = db.query(User).filter(User.username == reset_in.username).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user.recovery_phrase or user.recovery_phrase.strip().lower() != reset_in.recovery_phrase.strip().lower():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect recovery phrase"
+        )
+        
+    user.hashed_password = get_password_hash(reset_in.new_password)
+    db.commit()
+    return {"message": "Password reset successfully"}
+
+
+@router.put("/profile-photo", response_model=UserResponse)
+def update_profile_photo(
+    photo_in: ProfilePhotoUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update the current user's profile photo.
+    """
+    current_user.profile_photo = photo_in.profile_photo
+    db.commit()
+    db.refresh(current_user)
+    return current_user
