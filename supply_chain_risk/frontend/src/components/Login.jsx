@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, User, Shield, AlertCircle } from 'lucide-react';
+import { API_BASE } from '../config';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -17,7 +18,7 @@ export default function Login({ onLoginSuccess }) {
       params.append('username', username);
       params.append('password', password);
 
-      const response = await fetch('/api/v1/auth/token', {
+      const response = await fetch(`${API_BASE}/api/v1/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

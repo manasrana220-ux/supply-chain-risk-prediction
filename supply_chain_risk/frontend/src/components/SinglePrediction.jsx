@@ -22,6 +22,7 @@ import {
   ResponsiveContainer, 
   Cell 
 } from 'recharts';
+import { API_BASE } from '../config';
 
 const PRESETS = {
   low: {
@@ -94,7 +95,7 @@ export default function SinglePrediction({ token, onPredictionComplete, onLogout
   const [featureImportances, setFeatureImportances] = useState(null);
 
   React.useEffect(() => {
-    fetch('/api/v1/features', {
+    fetch(`${API_BASE}/api/v1/features`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
@@ -136,7 +137,7 @@ export default function SinglePrediction({ token, onPredictionComplete, onLogout
     setResult(null);
 
     try {
-      const response = await fetch('/api/v1/predict', {
+      const response = await fetch(`${API_BASE}/api/v1/predict`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

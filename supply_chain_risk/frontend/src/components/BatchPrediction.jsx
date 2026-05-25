@@ -18,6 +18,7 @@ import {
   Legend, 
   Tooltip 
 } from 'recharts';
+import { API_BASE } from '../config';
 
 const SAMPLE_BATCH_DATA = [
   { Traffic_Level: 7.2, ETA_Variation: 15.0, Weather_Severity: 4.5, Loading_Time: 45.0, Route_Risk: 6.0, Delivery_Time_Deviation: 30.0, Disruption_Score: 8.1, Fuel_Rate: 12.5, Vehicle_Capacity: 0.85, Warehouse_ID: 'W003', Order_Status: 0.0, Cargo_Condition: 0.9, Driver_Fatigue: 6.5 },
@@ -129,7 +130,7 @@ export default function BatchPrediction({ token, onPredictionComplete, onLogout 
     setError('');
 
     try {
-      const response = await fetch('/api/v1/predict/batch', {
+      const response = await fetch(`${API_BASE}/api/v1/predict/batch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

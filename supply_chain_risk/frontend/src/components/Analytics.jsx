@@ -9,6 +9,7 @@ import {
   ResponsiveContainer, 
   Cell 
 } from 'recharts';
+import { API_BASE } from '../config';
 import { 
   Cpu, 
   Info, 
@@ -61,7 +62,7 @@ export default function Analytics({ token, onLogout }) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/v1/features', {
+      const response = await fetch(`${API_BASE}/api/v1/features`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -90,7 +91,7 @@ export default function Analytics({ token, onLogout }) {
         [sensFeature]: sensValue
       };
 
-      const response = await fetch('/api/v1/predict', {
+      const response = await fetch(`${API_BASE}/api/v1/predict`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
