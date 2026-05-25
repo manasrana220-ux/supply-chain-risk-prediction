@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.core.database import get_db
 from app.models.user_model import User
@@ -75,7 +76,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user in the system.
     """
-    existing_user = db.query(User).filter(User.username == user_in.username).first()
+    existing_user = db.query(User).filter(func.lower(User.username) == func.lower(user_in.username)).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -122,7 +123,7 @@ def reset_password(reset_in: PasswordReset, db: Session = Depends(get_db)):
     """
     Reset a user's password using their recovery phrase.
     """
-    user = db.query(User).filter(User.username == reset_in.username).first()
+    user = db.query(User).filter(func.lower(User.username) == func.lower(reset_in.username)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

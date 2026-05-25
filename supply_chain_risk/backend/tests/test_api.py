@@ -67,6 +67,12 @@ def test_login_success():
     assert "access_token" in resp.json()
 
 
+def test_login_case_insensitive():
+    resp = client.post("/api/v1/auth/token", data={"username": "AdMiN", "password": "admin123"})
+    assert resp.status_code == 200
+    assert "access_token" in resp.json()
+
+
 def test_login_wrong_password():
     resp = client.post("/api/v1/auth/token", data={"username": "admin", "password": "wrong"})
     assert resp.status_code == 401
@@ -282,6 +288,15 @@ def test_reset_password_invalid_phrase():
     )
     assert resp.status_code == 400
     assert "Incorrect recovery phrase" in resp.json()["detail"]
+
+
+def test_reset_password_case_insensitive():
+    resp = client.post(
+        "/api/v1/auth/reset-password",
+        json={"username": "AnAlYsT", "recovery_phrase": "supply-chain", "new_password": "analyst123"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Password reset successfully"
 
 
 def test_profile_photo_upload():

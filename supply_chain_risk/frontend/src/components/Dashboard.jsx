@@ -16,6 +16,7 @@ import {
 import SinglePrediction from './SinglePrediction';
 import BatchPrediction from './BatchPrediction';
 import Analytics from './Analytics';
+import UserDirectory from './UserDirectory';
 import { API_BASE } from '../config';
 
 export default function Dashboard({ user, onLogout, theme, setTheme }) {
@@ -83,6 +84,10 @@ export default function Dashboard({ user, onLogout, theme, setTheme }) {
     { id: 'batch', label: 'Batch Processing', icon: Layers },
     { id: 'analytics', label: 'Model Analytics', icon: BarChart3 },
   ];
+
+  if (user.role === 'admin') {
+    menuItems.push({ id: 'users', label: 'User Directory', icon: User });
+  }
 
   return (
     <div className="dashboard-grid">
@@ -210,6 +215,12 @@ export default function Dashboard({ user, onLogout, theme, setTheme }) {
           )}
           {activeTab === 'analytics' && (
             <Analytics 
+              token={user.access_token} 
+              onLogout={onLogout}
+            />
+          )}
+          {activeTab === 'users' && user.role === 'admin' && (
+            <UserDirectory 
               token={user.access_token} 
               onLogout={onLogout}
             />
