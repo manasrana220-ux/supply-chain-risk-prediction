@@ -19,6 +19,23 @@ client = TestClient(app)
 @pytest.fixture(scope="session", autouse=True)
 def load_model():
     model_service.load_model()
+    
+    from app.core.database import Base, engine, SessionLocal
+    from app.models.user_model import User
+    from app.core.security import get_password_hash
+    
+    # Create test database tables
+    Base.metadata.drop_all(bind=engine)  # Start fresh
+    Base.metadata.create_all(bind=engine)
+    
+    # Seed users
+    db = SessionLocal()
+    try:
+        db.add(User(username="admin", hashed_password=get_password_hash("admin123"), role="admin"))
+        db.add(User(username="analyst", hashed_password=get_password_hash("analyst123"), role="analyst"))
+        db.commit()
+    finally:
+        db.close()
 
 
 def get_token():
@@ -159,3 +176,51 @@ def test_features_endpoint():
     data = resp.json()
     assert len(data["features"]) == 16
     assert "Disruption_Score" in data["importances"]
+
+
+# ── Registration tests ──────────────────────────────────────────────────────────
+
+def test_register_success():
+    username = f"user_{np.random.randint(10000, 99999)}"
+    resp = client.post(
+        "/api/v1/auth/register",
+        json={"username": username, "password": "newpassword123", "role": "analyst"}
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["username"] == username
+    assert data["role"] == "analyst"
+    assert data["is_active"] is True
+
+    # Verify login works with the newly registered user
+    login_resp = client.post(
+        "/api/v1/auth/token",
+        data={"username": username, "password": "newpassword123"}
+    )
+    assert login_resp.status_code == 200
+    assert "access_token" in login_resp.json()
+
+
+def test_register_duplicate():
+    username = f"user_{np.random.randint(10000, 99999)}"
+    resp = client.post(
+        "/api/v1/auth/register",
+        json={"username": username, "password": "newpassword123", "role": "analyst"}
+    )
+    assert resp.status_code == 201
+
+    duplicate_resp = client.post(
+        "/api/v1/auth/register",
+        json={"username": username, "password": "differentpass", "role": "admin"}
+    )
+    assert duplicate_resp.status_code == 400
+    assert duplicate_resp.json()["detail"] == "Username already registered"
+
+
+def test_register_invalid_role():
+    resp = client.post(
+        "/api/v1/auth/register",
+        json={"username": f"user_{np.random.randint(10000, 99999)}", "password": "password123", "role": "super-user"}
+    )
+    assert resp.status_code == 400
+    assert "Role must be either" in resp.json()["detail"]

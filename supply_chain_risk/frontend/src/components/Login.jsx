@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Shield, AlertCircle } from 'lucide-react';
+import { Lock, User, Shield, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { API_BASE } from '../config';
 
 export default function Login({ onLoginSuccess }) {
@@ -7,32 +7,59 @@ export default function Login({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Registration states
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [role, setRole] = useState('analyst');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
-      const params = new URLSearchParams();
-      params.append('username', username);
-      params.append('password', password);
+      if (isRegistering) {
+        // Register API request
+        const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password, role }),
+        });
 
-      const response = await fetch(`${API_BASE}/api/v1/auth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
-      });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || 'Registration failed. Please try again.');
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Authentication failed. Please check credentials.');
+        setSuccessMessage('Account created successfully! Please sign in.');
+        setIsRegistering(false);
+        setPassword('');
+      } else {
+        // Login API request
+        const params = new URLSearchParams();
+        params.append('username', username);
+        params.append('password', password);
+
+        const response = await fetch(`${API_BASE}/api/v1/auth/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params.toString(),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || 'Authentication failed. Please check credentials.');
+        }
+
+        const data = await response.json();
+        onLoginSuccess(data);
       }
-
-      const data = await response.json();
-      onLoginSuccess(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -54,13 +81,24 @@ export default function Login({ onLoginSuccess }) {
             <Shield size={36} color="var(--primary)" />
           </div>
           <h1 className="display-font" style={styles.title}>Supply Chain Risk Portal</h1>
-          <p style={styles.subtitle}>Enter credentials to access risk model dashboard</p>
+          <p style={styles.subtitle}>
+            {isRegistering 
+              ? 'Create a new account to access risk model dashboard' 
+              : 'Enter credentials to access risk model dashboard'}
+          </p>
         </div>
 
         {error && (
           <div style={styles.errorContainer} className="animate-fade-in">
             <AlertCircle size={18} color="var(--color-high)" />
             <span style={styles.errorText}>{error}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div style={styles.successContainer} className="animate-fade-in">
+            <CheckCircle2 size={18} color="var(--color-low)" />
+            <span style={styles.successText}>{successMessage}</span>
           </div>
         )}
 
@@ -95,6 +133,20 @@ export default function Login({ onLoginSuccess }) {
             </div>
           </div>
 
+          {isRegistering && (
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Assign Role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                style={styles.select}
+              >
+                <option value="analyst">Analyst (Read & Predict)</option>
+                <option value="admin">Administrator (Full Access)</option>
+              </select>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -104,32 +156,62 @@ export default function Login({ onLoginSuccess }) {
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
-            {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
+            {loading 
+              ? (isRegistering ? 'Registering...' : 'Authenticating...') 
+              : (isRegistering ? 'Create New Account' : 'Sign In to Dashboard')}
           </button>
         </form>
 
-        <div style={styles.divider}>
-          <span style={styles.dividerText}>Demo Credentials</span>
+        <div style={styles.toggleText}>
+          {isRegistering ? (
+            <>
+              Already have an account?{' '}
+              <span 
+                onClick={() => { setIsRegistering(false); setError(''); setSuccessMessage(''); }} 
+                style={styles.toggleLink}
+              >
+                Sign In
+              </span>
+            </>
+          ) : (
+            <>
+              New to the portal?{' '}
+              <span 
+                onClick={() => { setIsRegistering(true); setError(''); setSuccessMessage(''); }} 
+                style={styles.toggleLink}
+              >
+                Create Account
+              </span>
+            </>
+          )}
         </div>
 
-        <div style={styles.demoButtons}>
-          <button
-            type="button"
-            onClick={() => handlePreFill('admin', 'admin123')}
-            style={styles.demoBtn}
-          >
-            <strong>Administrator</strong>
-            <span style={styles.demoSub}>Full access (admin)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePreFill('analyst', 'analyst123')}
-            style={styles.demoBtn}
-          >
-            <strong>Analyst</strong>
-            <span style={styles.demoSub}>Read & Predict</span>
-          </button>
-        </div>
+        {!isRegistering && (
+          <>
+            <div style={styles.divider}>
+              <span style={styles.dividerText}>Demo Credentials</span>
+            </div>
+
+            <div style={styles.demoButtons}>
+              <button
+                type="button"
+                onClick={() => handlePreFill('admin', 'admin123')}
+                style={styles.demoBtn}
+              >
+                <strong>Administrator</strong>
+                <span style={styles.demoSub}>Full access (admin)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePreFill('analyst', 'analyst123')}
+                style={styles.demoBtn}
+              >
+                <strong>Analyst</strong>
+                <span style={styles.demoSub}>Read & Predict</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -289,6 +371,45 @@ const styles = {
   demoSub: {
     fontSize: '0.7rem',
     color: 'var(--text-muted)',
+  },
+  select: {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid var(--border-color)',
+    color: 'var(--text-primary)',
+    fontSize: '0.95rem',
+    outline: 'none',
+    cursor: 'pointer',
+    backgroundImage: 'none',
+  },
+  successContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.75rem 1rem',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--bg-low)',
+    border: '1px solid var(--border-low)',
+    marginBottom: '1.5rem',
+  },
+  successText: {
+    color: 'var(--color-low)',
+    fontSize: '0.85rem',
+    fontWeight: '500',
+  },
+  toggleText: {
+    textAlign: 'center',
+    fontSize: '0.85rem',
+    color: 'var(--text-secondary)',
+    marginTop: '1.5rem',
+  },
+  toggleLink: {
+    color: 'var(--primary)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'underline',
   },
 };
 // Add active focus states dynamically or override in style sheet

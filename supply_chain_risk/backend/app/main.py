@@ -7,12 +7,51 @@ from app.core.config import settings
 from app.services.model_service import model_service
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from app.core.database import Base, engine, SessionLocal
+from app.models.user_model import User
+from app.core.security import get_password_hash
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: load model
     model_service.load_model()
     print(f"Model loaded successfully from {settings.MODEL_PATH}")
+    
+    # Auto-create database tables
+    print("Initializing database tables...")
+    Base.metadata.create_all(bind=engine)
+    
+    # Seed default demo users if they don't exist
+    db = SessionLocal()
+    try:
+        if not db.query(User).filter(User.username == "admin").first():
+            print("Seeding default admin user...")
+            admin_user = User(
+                username="admin",
+                hashed_password=get_password_hash("admin123"),
+                role="admin",
+                is_active=True,
+            )
+            db.add(admin_user)
+        
+        if not db.query(User).filter(User.username == "analyst").first():
+            print("Seeding default analyst user...")
+            analyst_user = User(
+                username="analyst",
+                hashed_password=get_password_hash("analyst123"),
+                role="analyst",
+                is_active=True,
+            )
+            db.add(analyst_user)
+        
+        db.commit()
+    except Exception as e:
+        print(f"Error seeding database: {e}")
+        db.rollback()
+    finally:
+        db.close()
+        
     yield
     # Shutdown
     print("Shutting down...")
