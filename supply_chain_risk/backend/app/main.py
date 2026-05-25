@@ -26,9 +26,18 @@ app = FastAPI(
 )
 
 # CORS
+origins = list(settings.ALLOWED_ORIGINS)
+import os
+# Support custom production origins via comma-separated string
+cors_origins_env = os.getenv("CORS_ORIGINS")
+if cors_origins_env:
+    origins.extend([o.strip() for o in cors_origins_env.split(",") if o.strip()])
+# Fallback support for the user's active Render frontend URL
+origins.append("https://risk-prediction-dashboard-ixj7.onrender.com")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
