@@ -224,3 +224,26 @@ def test_register_invalid_role():
     )
     assert resp.status_code == 400
     assert "Role must be either" in resp.json()["detail"]
+
+
+# ── User Directory Permission tests ───────────────────────────────────────────
+
+def test_get_users_admin():
+    token = get_token()
+    resp = client.get("/api/v1/auth/users", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 2
+    usernames = [u["username"] for u in data]
+    assert "admin" in usernames
+    assert "analyst" in usernames
+
+
+def test_get_users_analyst():
+    login_resp = client.post(
+        "/api/v1/auth/token",
+        data={"username": "analyst", "password": "analyst123"}
+    )
+    token = login_resp.json()["access_token"]
+    resp = client.get("/api/v1/auth/users", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 403

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.user_model import User
-from app.core.security import authenticate_user, create_access_token, get_password_hash
+from app.core.security import authenticate_user, create_access_token, get_password_hash, get_current_user
 
 router = APIRouter()
 
@@ -84,3 +84,19 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+@router.get("/users", response_model=list[UserResponse])
+def get_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a list of all registered users (Admin only).
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can view the user directory."
+        )
+    return db.query(User).all()
